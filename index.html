@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>九宫格解锁密码找回助手 — 轨迹记录与高概率优先推荐</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 顶部导航与统计栏 -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 36 36" width="30" height="30">
+          <circle cx="8" cy="8" r="3.2" fill="#10b981" />
+          <circle cx="18" cy="8" r="3" fill="#2563eb" />
+          <circle cx="28" cy="8" r="3" fill="#cbd5e1" />
+          <circle cx="8" cy="18" r="3" fill="#cbd5e1" />
+          <circle cx="18" cy="18" r="3" fill="#2563eb" />
+          <circle cx="28" cy="18" r="3" fill="#cbd5e1" />
+          <circle cx="8" cy="28" r="3" fill="#2563eb" />
+          <circle cx="18" cy="28" r="3" fill="#2563eb" />
+          <circle cx="28" cy="28" r="3.5" fill="#7c3aed" />
+          <polyline
+            points="8,8 18,8 18,18 8,28 18,28 28,28"
+            fill="none"
+            stroke="#2563eb"
+            stroke-width="2.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+      <div>
+        <h1>九宫格密码找回助手</h1>
+        <p class="subtitle">防重记录 · 肌肉记忆联想 · 人体工学与统计学高概率排序</p>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-pill" title="普通试验过且不对的姿势（中性排除）">
+        <span class="stat-label">✓ 试验过了</span>
+        <strong id="statTriedCount" class="stat-value tried">0</strong>
+      </div>
+      <div class="stat-pill" title="手感或走向很接近的姿势（自动加权相似变体）">
+        <span class="stat-label">⭐ 手感像</span>
+        <strong id="statStarredCount" class="stat-value starred">0</strong>
+      </div>
+      <div class="stat-pill" title="完全不像的姿势（自动降权相似变体）">
+        <span class="stat-label">🚫 不像</span>
+        <strong id="statUnlikeCount" class="stat-value unlike">0</strong>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-label">待试候选</span>
+        <strong id="statCandidateCount" class="stat-value candidate">0</strong>
+      </div>
+      <div class="cooldown-box" id="cooldownBox">
+        <button id="btnStartTimer" class="btn btn-outline btn-sm" title="手机连错5次通常锁定30秒，点击开始倒计时">
+          ⏱️ 30秒冷却计时
+        </button>
+        <span id="timerDisplay" class="timer-display hidden">30s</span>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button id="btnExport" class="btn btn-ghost btn-sm" title="导出已试记录为JSON备份">导出备份</button>
+      <label class="btn btn-ghost btn-sm" title="导入之前的JSON备份">
+        导入记录
+        <input type="file" id="inputImport" accept=".json" hidden />
+      </label>
+      <button id="btnResetAll" class="btn btn-danger-ghost btn-sm" title="清空所有已试记录">清空记录</button>
+    </div>
+  </header>
+
+  <!-- 解锁成功横幅 (默认隐藏) -->
+  <div id="solvedBanner" class="solved-banner hidden">
+    <div class="solved-content">
+      <span class="solved-badge">🎉 密码已找回！</span>
+      <span>你的九宫格解锁密码是：<strong id="solvedPatternText"></strong></span>
+      <button id="btnClearSolved" class="btn btn-sm btn-ghost">继续探索</button>
+    </div>
+  </div>
+
+  <!-- 主体三栏布局 -->
+  <main class="main-grid">
+    <!-- 左栏：仿真手势画板 & 实时校验 -->
+    <section class="panel pad-panel">
+      <div class="panel-header">
+        <h2>👆 仿真手势画板 · 实时查重</h2>
+        <span class="badge">自动补全中间点</span>
+      </div>
+      <p class="panel-desc">
+        在下方画板滑出你想试的姿势，系统会<strong>立即检查是否试过</strong>，并评估它的概率与相近变体。
+      </p>
+
+      <!-- 九宫格交互画布容器 -->
+      <div class="lock-pad-wrapper">
+        <svg id="lockPadSvg" class="lock-pad-svg" viewBox="0 0 300 300">
+          <defs>
+            <linearGradient id="lineGrad" gradientUnits="userSpaceOnUse" x1="30" y1="30" x2="270" y2="270">
+              <stop offset="0%" stop-color="#10b981" />
+              <stop offset="50%" stop-color="#2563eb" />
+              <stop offset="100%" stop-color="#7c3aed" />
+            </linearGradient>
+          </defs>
+          <!-- 底层：9个点位的外圈光环与点位角标 -->
+          <g id="padHaloGroup"></g>
+          <!-- 中层：已确定的连线与方向箭头 -->
+          <g id="padLinesGroup"></g>
+          <!-- 正在拖拽的跟随线 -->
+          <line id="padActiveLine" x1="0" y1="0" x2="0" y2="0" class="active-drag-line hidden" />
+          <!-- 顶层：9个点位的中心实心圆、步数序号与交互热区 -->
+          <g id="padNodesGroup"></g>
+        </svg>
+      </div>
+
+      <!-- 图例说明 -->
+      <div class="pad-legend">
+        <span class="legend-item"><i class="dot start"></i> 起点</span>
+        <span class="legend-item"><i class="dot mid"></i> 途经点</span>
+        <span class="legend-item"><i class="dot end"></i> 终点</span>
+      </div>
+
+      <!-- 手动数字输入与清空 -->
+      <div class="manual-input-row">
+        <input
+          type="text"
+          id="manualSeqInput"
+          class="seq-input"
+          placeholder="也可直接输入数字，如 14789"
+          maxlength="9"
+        />
+        <button id="btnReplayCurrent" class="btn btn-ghost btn-sm" title="动态演示当前路径">▶️ 演示</button>
+        <button id="btnClearPad" class="btn btn-ghost btn-sm">清空</button>
+      </div>
+
+      <!-- 当前手势实时诊断卡片 -->
+      <div id="currentDiagnosis" class="diagnosis-card empty">
+        <div class="diag-placeholder">
+          请在上方九宫格滑动，或点击右侧推荐卡片预览姿势
+        </div>
+      </div>
+
+      <!-- 当前手势的近邻联想变体 -->
+      <div id="similarSection" class="similar-section hidden">
+        <div class="similar-header">
+          <span>💡 与当前手势最接近的未试变体（防手滑偏一格）</span>
+        </div>
+        <div id="similarGrid" class="similar-mini-grid"></div>
+      </div>
+    </section>
+
+    <!-- 中栏：记忆线索筛选器 -->
+    <section class="panel filter-panel">
+      <div class="panel-header">
+        <h2>🧠 记忆线索与习惯筛选</h2>
+        <button id="btnResetFilters" class="btn btn-ghost btn-xs">重置全部条件</button>
+      </div>
+      <p class="panel-desc">
+        只需勾选你模糊记得的线索（如起手位置、必经点），即可大幅缩小范围。不选代表不限。
+      </p>
+
+      <!-- 1 & 2. 起点与终点空间九宫格选择器 (并排 3x3 直观方位) -->
+      <div class="spatial-dual-grid">
+        <!-- 起点 3x3 -->
+        <div class="spatial-box">
+          <div class="spatial-box-header">
+            <label class="filter-label">🟢 印象中的【起点】</label>
+            <div class="quick-btns">
+              <button class="chip-btn" data-preset-start="1,2,4">左上区</button>
+              <button class="chip-btn" data-preset-start="clear">不限</button>
+            </div>
+          </div>
+          <div id="startNodeSelector" class="node-3x3-selector"></div>
+        </div>
+
+        <!-- 终点 3x3 -->
+        <div class="spatial-box">
+          <div class="spatial-box-header">
+            <label class="filter-label">🟣 印象中的【终点】</label>
+            <div class="quick-btns">
+              <button class="chip-btn" data-preset-end="6,8,9">右下区</button>
+              <button class="chip-btn" data-preset-end="clear">不限</button>
+            </div>
+          </div>
+          <div id="endNodeSelector" class="node-3x3-selector"></div>
+        </div>
+      </div>
+
+      <!-- 3. 必经点与排除点 -->
+      <div class="filter-group">
+        <div class="filter-title-row">
+          <label class="filter-label">🎯 必经点 / 排除点（点击点位循环切换）</label>
+          <span class="legend-inline">
+            <span class="dot-badge neutral">不限</span>
+            <span class="dot-badge include">✓ 必经</span>
+            <span class="dot-badge exclude">✕ 排除</span>
+          </span>
+        </div>
+        <div id="nodeStateSelector" class="node-state-grid"></div>
+      </div>
+
+      <!-- 4. 连接点数范围 -->
+      <div class="filter-group">
+        <div class="filter-title-row">
+          <label class="filter-label">📏 连接点数（最少4点，最多9点）</label>
+          <div class="quick-btns">
+            <button class="chip-btn active" data-len-preset="4-6">最常见(4~6点)</button>
+            <button class="chip-btn" data-len-preset="4-5">简短(4~5点)</button>
+            <button class="chip-btn" data-len-preset="6-8">中长(6~8点)</button>
+            <button class="chip-btn" data-len-preset="4-9">全部</button>
+          </div>
+        </div>
+        <div class="length-checkboxes" id="lengthSelector">
+          <label class="len-check"><input type="checkbox" value="4" checked /> <span>4点</span></label>
+          <label class="len-check"><input type="checkbox" value="5" checked /> <span>5点</span></label>
+          <label class="len-check"><input type="checkbox" value="6" checked /> <span>6点</span></label>
+          <label class="len-check"><input type="checkbox" value="7" /> <span>7点</span></label>
+          <label class="len-check"><input type="checkbox" value="8" /> <span>8点</span></label>
+          <label class="len-check"><input type="checkbox" value="9" /> <span>9点</span></label>
+        </div>
+      </div>
+
+      <!-- 5. 局部连线 & 形状特征 -->
+      <div class="filter-group">
+        <label class="filter-label">🔗 记得的局部连线片段（选填，逗号分隔，如 <code>12</code> 或 <code>478</code>）</label>
+        <input
+          type="text"
+          id="subpathInput"
+          class="text-input"
+          placeholder="例如输入 147 表示一定包含 1→4→7 这段连续滑动"
+        />
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">📐 形状与手势习惯偏好</label>
+        <div class="select-row">
+          <select id="shapeFilterSelect" class="select-input">
+            <option value="all">全部图形（经典图形优先加分）</option>
+            <option value="archetype">仅看经典字母/符号形状 (L/Z/N/U/C/S/7/M/口/T...)</option>
+            <option value="no_knight">排除“日”字斜跳步（只看横竖斜相邻连线）</option>
+            <option value="smooth">仅看顺滑走势（无锐角折返）</option>
+            <option value="symmetric">具有对称美感或规整几何感</option>
+          </select>
+
+          <select id="handHabitSelect" class="select-input">
+            <option value="standard">默认人体工学（从上往下、从左往右加权）</option>
+            <option value="right_thumb">右手单手握持习惯（左上/中起手，右下收尾）</option>
+            <option value="left_thumb">左手单手握持习惯（右上/左上起手，左下收尾）</option>
+            <option value="memory_first">⭐ 优先贴合“手感接近”线索样本</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 心理学与大数据小贴士 -->
+      <div class="tips-box">
+        <h4>📊 三档反馈智能调权说明：</h4>
+        <ul>
+          <li><strong>⭐ 手感像</strong>：将该手势的平移、首尾增删、镜像变体<strong>大幅加权置顶</strong>。</li>
+          <li><strong>✓ 试验过了</strong>：普通试错记录，仅将该密码本身<strong>从待试池排除</strong>。</li>
+          <li><strong>🚫 不像</strong>：完全不对劲的走向，系统会<strong>自动压低</strong>与它相似的图形排名。</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 右栏：高概率推荐队列 & 已试历史记录 -->
+    <section class="panel list-panel">
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab="recommend">
+          🔥 优先推荐试锁队列 <span id="tabRecBadge" class="tab-badge">0</span>
+        </button>
+        <button class="tab-btn" data-tab="history">
+          📝 已试记录本 <span id="tabHistBadge" class="tab-badge">0</span>
+        </button>
+      </div>
+
+      <!-- 推荐列表视图 -->
+      <div id="tabRecommendView" class="tab-view">
+        <div class="rec-toolbar">
+          <div class="rec-toolbar-left">
+            <span class="batch-hint">💡 手机每输错 <strong>5次</strong> 通常冷却 30 秒，前 5 个已为你标记为 <strong>「本轮优先」</strong>：</span>
+          </div>
+          <div class="rec-toolbar-right">
+            <button id="btnMarkTop5Tried" class="btn btn-primary btn-xs" title="将当前前5个全部标记为「试验过了」，并自动开启30秒冷却计时">
+              ✓ 本轮前5个已试完 (记为试验过了)
+            </button>
+          </div>
+        </div>
+
+        <div id="recommendList" class="pattern-card-grid"></div>
+
+        <div class="pagination-bar">
+          <button id="btnPrevPage" class="btn btn-ghost btn-sm">← 上一页</button>
+          <span id="pageInfoText" class="page-info">第 1 / 1 页</span>
+          <button id="btnNextPage" class="btn btn-ghost btn-sm">下一页 →</button>
+        </div>
+      </div>
+
+      <!-- 历史记录视图 -->
+      <div id="tabHistoryView" class="tab-view hidden">
+        <div class="history-toolbar">
+          <input
+            type="text"
+            id="historySearchInput"
+            class="text-input history-search"
+            placeholder="搜索已记录的数字序列，如 147..."
+          />
+          <select id="historyFilterSelect" class="select-input history-filter-select">
+            <option value="all">全部记录</option>
+            <option value="like">⭐ 仅看「手感像」</option>
+            <option value="tried">✓ 仅看「试验过了」</option>
+            <option value="unlike">🚫 仅看「不像」</option>
+          </select>
+        </div>
+
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
