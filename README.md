@@ -1,8 +1,8 @@
-# 🔓 九宫格解锁密码找回助手 (Pattern Lock Recovery Assistant)
+# 🧩 九宫格手势回忆助手 (Pattern Recall)
 
-> 一个专为「忘记手机九宫格图案密码」设计的Web辅助工具：**1:1 仿真防重画板 + 模糊记忆线索筛选 + 统计学/人体工学/肌肉记忆三档智能推荐**。
+> 一个专为「忘记手机九宫格手势图案」设计的记忆辅助工具：**1:1 仿真防重画板 + 模糊记忆线索筛选 + 统计学/人体工学/肌肉记忆三档智能推荐**。
 
-🌐 **在线体验 (GitHub Pages)**：[https://arrake0101.github.io/unlock/](https://arrake0101.github.io/unlock/)
+🌐 **在线体验 (GitHub Pages)**：[https://arrake0101.github.io/pattern-recall/](https://arrake0101.github.io/pattern-recall/)
 
 ---
 
@@ -60,7 +60,7 @@ node server.js
 ## 📂 目录结构
 
 ```text
-unlock/
+pattern-recall/
 ├── index.html                   # 主页面（三栏响应式布局）
 ├── styles.css                   # 清爽亮色主题与九宫格轨迹样式
 ├── app.js                       # 九宫格几何引擎、启发式剪枝搜索与三档评分算法
